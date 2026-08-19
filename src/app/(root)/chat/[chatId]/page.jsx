@@ -17,6 +17,7 @@ const ChatPage = async ({ params }) => {
       user={user}
       chatId={chat.id}
       initialMessages={chat.messages}
+      chatTitle={chat.title}
     />
   );
 };

@@ -1,32 +1,39 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowDown } from "lucide-react";
+import { ArrowDown, Download, FileText, FileDown } from "lucide-react";
 import ChatWelcomeTabs from "./chat-welcome-tabs";
 import MessageView from "./messages/message-view";
 import MessageForm from "./messages/message-form";
 import { useChat } from "../hooks/chat";
+import { exportAsMarkdown, exportAsPDF } from "@/lib/export-chat";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 const ChatMessageView = ({
   user = { name: "there" },
   chatId,
   initialMessages = [],
+  chatTitle = "Chat",
 }) => {
   const [selectedMessage, setSelectedMessage] = useState("");
   const [showScrollButton, setShowScrollButton] = useState(false);
   const bottomRef = useRef(null);
   const scrollContainerRef = useRef(null);
 
-  const { messages, isLoading, sendMessage } = useChat({
+  const { messages, isLoading, toolStatus, sendMessage } = useChat({
     chatId,
     initialMessages,
   });
 
-  // Auto scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
-  // Track scroll position to show/hide the button
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -63,14 +70,42 @@ const ChatMessageView = ({
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="flex flex-col h-full relative">
+    <div className="flex flex-col h-full relative overflow-hidden">
+      {hasMessages && (
+        <div className="absolute top-3 right-4 z-10">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => exportAsMarkdown(messages, chatTitle)}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Export as Markdown
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => exportAsPDF(messages, chatTitle)}
+              >
+                <FileDown className="h-4 w-4 mr-2" />
+                Export as PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
+
       {hasMessages ? (
         <MessageView
-          messages={messages}
-          isLoading={isLoading}
-          bottomRef={bottomRef}
-          scrollContainerRef={scrollContainerRef}
-        />
+  messages={messages}
+  isLoading={isLoading}
+  toolStatus={toolStatus}
+  bottomRef={bottomRef}
+  scrollContainerRef={scrollContainerRef}
+/>
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center space-y-10">
           <ChatWelcomeTabs
@@ -90,6 +125,7 @@ const ChatMessageView = ({
       )}
 
       <MessageForm
+        chatId={chatId}
         initialMessage={selectedMessage}
         onMessageChange={handleMessageChange}
         onSend={handleSend}

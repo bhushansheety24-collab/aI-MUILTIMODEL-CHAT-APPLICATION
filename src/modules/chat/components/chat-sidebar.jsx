@@ -1,9 +1,8 @@
 "use client";
 import { useState, useMemo, Fragment, useTransition } from "react";
-import { ThemeToggle } from "@/components/theme-toggle";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,14 +15,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import UserButton from "@/modules/auth/components/user-button";
 import { cn } from "@/lib/utils";
-import { PlusIcon, SearchIcon, EllipsisIcon, Trash } from "lucide-react";
+import { PlusIcon, SearchIcon, EllipsisIcon, Trash, Settings } from "lucide-react";
 import { useChatStore } from "../store/chat-store";
 import DeleteChatModal from "./modal/chat-delete-modal";
 import { createChat } from "../actions";
 
 const ChatSidebar = ({ user, chats = [] }) => {
   const router = useRouter();
-  const { activeChatId, setActiveChatId } = useChatStore();
+  const pathname = usePathname();
+  const activeChatId = pathname?.startsWith("/chat/")
+    ? pathname.split("/chat/")[1]
+    : null;
+
+  const { setActiveChatId } = useChatStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedChatId, setSelectedChatId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -128,7 +132,6 @@ const ChatSidebar = ({ user, chats = [] }) => {
 
   return (
     <div className="flex h-full w-64 flex-col bg-sidebar">
-
       {/* Logo + Title */}
       <div className="flex items-center gap-2 px-4 py-3">
         <Image src="/logo.png" alt="Logo" width={28} height={28} />
@@ -211,14 +214,17 @@ const ChatSidebar = ({ user, chats = [] }) => {
         setIsModalOpen={setIsModalOpen}
       />
 
-
       {/* User Section */}
       <div className="p-3 flex items-center gap-3 border-t border-border">
         <UserButton user={user} />
         <span className="flex-1 text-sm truncate text-muted-foreground">
           {user.name || user.email}
-          <ThemeToggle />
         </span>
+        <Link href="/settings">
+          <Button variant="ghost" size="icon">
+            <Settings className="h-4 w-4" />
+          </Button>
+        </Link>
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import EmailSendButton, { parseEmailDraft } from "./email-send-button";
 
 function MessageBubble({ role, content }) {
   const isUser = role === "user";
@@ -18,7 +19,8 @@ function MessageBubble({ role, content }) {
     );
   }
 
-  // Assistant message — full width, ChatGPT-style, no bubble
+  const emailDraft = parseEmailDraft(content);
+
   return (
     <div className="flex gap-3 w-full">
       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
@@ -88,16 +90,32 @@ function MessageBubble({ role, content }) {
             p({ children }) {
               return <p className="mb-3 last:mb-0">{children}</p>;
             },
+            a(props) {
+              const { children, href } = props;
+              return (
+                <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline break-all">
+                  {children}
+                </a>
+              );
+            },
           }}
         >
           {content}
         </ReactMarkdown>
+
+        {emailDraft && (
+          <EmailSendButton
+            to={emailDraft.to}
+            subject={emailDraft.subject}
+            body={emailDraft.body}
+          />
+        )}
       </div>
     </div>
   );
 }
 
-const MessageView = ({ messages, isLoading, bottomRef, scrollContainerRef }) => {
+const MessageView = ({ messages, isLoading, toolStatus, bottomRef, scrollContainerRef }) => {
   return (
     <div
       ref={scrollContainerRef}
@@ -113,15 +131,21 @@ const MessageView = ({ messages, isLoading, bottomRef, scrollContainerRef }) => 
             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
               <Sparkles className="h-3.5 w-3.5" />
             </div>
-            <div className="flex gap-1 rounded-2xl rounded-tl-sm bg-muted px-4 py-3">
-              {[0, 1, 2].map((i) => (
-                <span
-                  key={i}
-                  className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground"
-                  style={{ animationDelay: `${i * 120}ms` }}
-                />
-              ))}
-            </div>
+            {toolStatus ? (
+              <div className="rounded-2xl rounded-tl-sm bg-muted px-4 py-3 text-sm text-muted-foreground animate-pulse">
+                {toolStatus}
+              </div>
+            ) : (
+              <div className="flex gap-1 rounded-2xl rounded-tl-sm bg-muted px-4 py-3">
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground"
+                    style={{ animationDelay: `${i * 120}ms` }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 

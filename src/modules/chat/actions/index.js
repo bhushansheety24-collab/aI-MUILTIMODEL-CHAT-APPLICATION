@@ -138,3 +138,16 @@ export const getMessages = async (chatId) => {
 
   return messages;
 };
+
+export const getDocumentsForChat = async (chatId) => {
+  const documents = await db.document.findMany({
+    where: { chatId },
+    orderBy: { createdAt: "desc" },
+  });
+  return documents;
+};
+
+export const deleteDocument = async (documentId) => {
+  await db.document.delete({ where: { id: documentId } });
+  revalidatePath("/");
+};
