@@ -10,6 +10,7 @@ import { searchWeb } from "@/lib/web-search";
 import { searchGmail, searchDrive, getGmailAttachment } from "@/lib/google-connector";
 import { generateDocx } from "@/lib/generate-docx";
 import { comparePrices } from "@/lib/shopping-search";
+import { listCalendarEvents, createCalendarEvent } from "@/lib/google-connector";
 
 const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -118,6 +119,8 @@ ${contextText}`;
     }
 
     systemPrompt += `
+    Today's date is ${new Date().toISOString().split("T")[0]}. Use this to correctly interpret relative dates like "tomorrow" or "next Monday" when calling calendar_search or calendar_create_event.
+
 
 You have access to these tools:
 - web_search: use for current events, recent news, prices, or general up-to-date information.
@@ -127,7 +130,8 @@ You have access to these tools:
 - drive_search: use when the user asks about their Drive files/documents. Requires the user to have connected Google at /settings.
 - create_document: use when the user asks you to write, create, or generate a downloadable document, report, or file based on some topic or content.
 - shop_search: use when the user wants to buy something or compare prices. Returns real results with prices, ratings, and a "link" field for each product. For EVERY product you mention, you MUST wrap the product name in a markdown link using its exact "link" value, formatted like this: [Product Name](link) - ₹price (MRP ₹mrp) - rating★. Do not list any product without making its name a clickable link. Never make up or omit a link — if a product has no link, don't include it.
-
+- calendar_search: use when the user asks about their schedule or events. If they mention a specific date (e.g. "Sep 12", "tomorrow", "next Monday"), convert it to YYYY-MM-DD format and pass it as the "date" parameter to get events for that exact day. If no date is mentioned, omit the date parameter to get general upcoming events.
+- calendar_create_event: use when the user asks to schedule a meeting or create a calendar event. Requires ISO datetime format and requires Google connected at /settings.
 When you use web_search results, include the actual source links as clickable markdown links at the end of your response under a "**Sources:**" heading. Never make up a URL.
 
 When you use draft_email, present the draft clearly to the user with To, Subject, and Body labeled, and remind them you can't send it directly — they'll need to copy it into their own email client.
@@ -142,6 +146,46 @@ If gmail_search or drive_search fails because the account isn't connected, tell 
       messages: validMessages,
       stopWhen: stepCountIs(5),
       tools: {
+        calendar_search: tool({
+  description:
+    "Check the user's calendar events. If the user asks about a specific date, pass that date to filter results to just that day. Otherwise returns upcoming events. Requires the user to have connected Google at /settings.",
+  inputSchema: z.object({
+    date: z.string().optional().describe("Specific date to check, in YYYY-MM-DD format, e.g. '2026-09-12'. Omit for general upcoming events."),
+    maxResults: z.number().optional().describe("How many events to fetch, default 10"),
+  }),
+  execute: async ({ date, maxResults = 10 }) => {
+    try {
+      let timeMin, timeMax;
+      if (date) {
+        timeMin = `${date}T00:00:00Z`;
+        timeMax = `${date}T23:59:59Z`;
+      }
+      const events = await listCalendarEvents(maxResults, timeMin, timeMax);
+      return { events, queriedDate: date || "upcoming" };
+    } catch (err) {
+      return { error: "Calendar check failed. The user may need to connect Google at /settings.", details: err.message };
+    }
+  },
+}),
+
+        
+calendar_create_event: tool({
+  description: "Create a new calendar event when the user asks to schedule something. Requires the user to have connected Google at /settings.",
+  inputSchema: z.object({
+    title: z.string().describe("Event title"),
+    description: z.string().optional().describe("Event description"),
+    startDateTime: z.string().describe("ISO 8601 start datetime, e.g. 2026-08-25T15:00:00"),
+    endDateTime: z.string().describe("ISO 8601 end datetime, e.g. 2026-08-25T16:00:00"),
+  }),
+  execute: async ({ title, description, startDateTime, endDateTime }) => {
+    try {
+      const event = await createCalendarEvent({ title, description, startDateTime, endDateTime });
+      return { success: true, event };
+    } catch (err) {
+      return { error: "Failed to create event. The user may need to connect Google at /settings.", details: err.message };
+    }
+  },
+}),
         web_search: tool({
           description:
             "Search the web for current information, news, or facts that may not be in your training data.",

@@ -1,7 +1,8 @@
 "use client";
 import { useState, useMemo, Fragment, useTransition } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import { Swords } from "lucide-react";
+
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -134,21 +135,28 @@ const ChatSidebar = ({ user, chats = [] }) => {
     <div className="flex h-full w-64 flex-col bg-sidebar">
       {/* Logo + Title */}
       <div className="flex items-center gap-2 px-4 py-3">
-        <Image src="/logo.png" alt="Logo" width={28} height={28} />
+
         <span className="font-bold text-lg text-foreground">T3.chat</span>
       </div>
 
       {/* New Chat Button */}
-      <div className="px-3 pb-3">
-        <Button
-          className="w-full rounded-lg font-semibold"
-          onClick={handleNewChat}
-          disabled={isPending}
-        >
-          <PlusIcon className="mr-2 h-4 w-4" />
-          {isPending ? "Creating..." : "New Chat"}
-        </Button>
-      </div>
+<div className="px-3 pb-3">
+  <Button
+    className="w-full rounded-lg font-semibold"
+    onClick={handleNewChat}
+    disabled={isPending}
+  >
+    <PlusIcon className="mr-2 h-4 w-4" />
+    {isPending ? "Creating..." : "New Chat"}
+  </Button>
+
+  <Link href="/arena">
+    <Button variant="outline" className="w-full mt-2" size="sm">
+      <Swords className="h-3.5 w-3.5 mr-2" />
+      Arena Mode
+    </Button>
+  </Link>
+</div>
 
       {/* Search */}
       <div className="px-3 pb-3">

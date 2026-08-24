@@ -3,10 +3,11 @@ import jsPDF from "jspdf";
 export function exportAsMarkdown(messages, chatTitle = "Chat") {
   let markdown = `# ${chatTitle}\n\n`;
 
-  messages.forEach((m) => {
-    const speaker = m.role === "user" ? "**You**" : "**Assistant**";
-    markdown += `${speaker}:\n\n${m.content}\n\n---\n\n`;
-  });
+  messages
+    .filter((m) => m.role === "assistant")
+    .forEach((m) => {
+      markdown += `${m.content}\n\n---\n\n`;
+    });
 
   const blob = new Blob([markdown], { type: "text/markdown" });
   const url = URL.createObjectURL(blob);
@@ -17,9 +18,26 @@ export function exportAsMarkdown(messages, chatTitle = "Chat") {
   URL.revokeObjectURL(url);
 }
 
+function stripMermaidBlocks(content) {
+  // Replace mermaid code blocks with a readable placeholder note
+  return content.replace(
+    /```mermaid[\s\S]*?```/g,
+    "[Diagram — view in chat for the interactive version]"
+  );
+}
+
+function cleanMarkdownForPdf(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/^#{1,6}\s*/gm, "")
+    .replace(/^[-*]\s+/gm, "• ")
+    .replace(/`([^`]+)`/g, "$1");
+}
+
 export function exportAsPDF(messages, chatTitle = "Chat") {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 15;
   const maxWidth = pageWidth - margin * 2;
   let y = 20;
@@ -27,34 +45,40 @@ export function exportAsPDF(messages, chatTitle = "Chat") {
   doc.setFontSize(16);
   doc.setFont(undefined, "bold");
   doc.text(chatTitle, margin, y);
-  y += 10;
+  y += 12;
 
   doc.setFontSize(11);
+  doc.setFont(undefined, "normal");
 
-  messages.forEach((m) => {
-    const speaker = m.role === "user" ? "You" : "Assistant";
+  const assistantMessages = messages.filter((m) => m.role === "assistant");
 
-    doc.setFont(undefined, "bold");
-    if (y > 280) {
-      doc.addPage();
-      y = 20;
-    }
-    doc.text(`${speaker}:`, margin, y);
-    y += 6;
+  assistantMessages.forEach((m, idx) => {
+    const raw = stripMermaidBlocks(m.content || "");
+    const cleaned = cleanMarkdownForPdf(raw);
+    const paragraphs = cleaned.split(/\n+/).filter((p) => p.trim());
 
-    doc.setFont(undefined, "normal");
-    const lines = doc.splitTextToSize(m.content || "", maxWidth);
+    paragraphs.forEach((para) => {
+      const lines = doc.splitTextToSize(para.trim(), maxWidth);
+      lines.forEach((line) => {
+        if (y > pageHeight - 20) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.text(line, margin, y);
+        y += 6;
+      });
+      y += 3;
+    });
 
-    lines.forEach((line) => {
-      if (y > 280) {
+    if (idx < assistantMessages.length - 1) {
+      if (y > pageHeight - 25) {
         doc.addPage();
         y = 20;
       }
-      doc.text(line, margin, y);
-      y += 6;
-    });
-
-    y += 6;
+      doc.setDrawColor(200);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 8;
+    }
   });
 
   doc.save(`${chatTitle.replace(/[^a-z0-9]/gi, "_")}.pdf`);

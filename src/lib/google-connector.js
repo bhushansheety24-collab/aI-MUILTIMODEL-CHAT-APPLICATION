@@ -111,3 +111,61 @@ export async function searchDrive(query, maxResults = 5) {
     modified: f.modifiedTime,
   }));
 }
+export async function listCalendarEvents(maxResults = 10, timeMin, timeMax) {
+  const accessToken = await getGoogleToken();
+
+  const effectiveTimeMin = timeMin || new Date().toISOString();
+  const params = new URLSearchParams({
+    timeMin: effectiveTimeMin,
+    maxResults: String(maxResults),
+    singleEvents: "true",
+    orderBy: "startTime",
+  });
+  if (timeMax) params.set("timeMax", timeMax);
+
+  const res = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params.toString()}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+
+  if (!res.ok) throw new Error(`Calendar list failed: ${res.status}`);
+  const data = await res.json();
+
+  return (data.items || []).map((e) => ({
+    title: e.summary,
+    start: e.start?.dateTime || e.start?.date,
+    end: e.end?.dateTime || e.end?.date,
+    location: e.location,
+    link: e.htmlLink,
+  }));
+}
+  
+
+export async function createCalendarEvent({ title, description, startDateTime, endDateTime }) {
+  const accessToken = await getGoogleToken();
+
+  const res = await fetch(
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        summary: title,
+        description,
+        start: { dateTime: startDateTime },
+        end: { dateTime: endDateTime },
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Failed to create event: ${res.status} - ${errText}`);
+  }
+
+  const data = await res.json();
+  return { title: data.summary, link: data.htmlLink };
+}

@@ -13,6 +13,8 @@ const TOOL_LABELS = {
   draft_email: "✍️ Drafting email...",
   create_document: "📄 Creating document...",
   get_email_attachment: "📎 Fetching attachment...",
+  calendar_search: "📅 Checking your calendar...",
+  calendar_create_event: "📅 Creating calendar event...",
 };
 
 export const useChat = ({ chatId, initialMessages = [] }) => {
@@ -34,12 +36,14 @@ export const useChat = ({ chatId, initialMessages = [] }) => {
 
       try {
         let currentChatId = chatId;
+        let isNewChat = false;
 
+        // Create the chat, but DON'T navigate yet
         if (!currentChatId) {
           const newChat = await createChat();
           currentChatId = newChat.id;
+          isNewChat = true;
           setActiveChatId(currentChatId);
-          router.push(`/chat/${currentChatId}`);
         }
 
         const userMessage = {
@@ -151,7 +155,12 @@ export const useChat = ({ chatId, initialMessages = [] }) => {
           await updateChatTitle({ chatId: currentChatId, title });
         }
 
-        router.refresh();
+        // NOW navigate — only after the full response is saved
+        if (isNewChat) {
+          router.push(`/chat/${currentChatId}`);
+        } else {
+          router.refresh();
+        }
       } catch (err) {
         setError(err.message);
         console.error("Chat error:", err);

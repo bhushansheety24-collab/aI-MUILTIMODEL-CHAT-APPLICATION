@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-
+import AnimatedBackground from "./animated-background";
 const ChatMessageView = ({
   user = { name: "there" },
   chatId,
@@ -107,13 +107,14 @@ const ChatMessageView = ({
   scrollContainerRef={scrollContainerRef}
 />
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center space-y-10">
-          <ChatWelcomeTabs
-            userName={user?.name}
-            onMessageSelect={handleMessageSelect}
-          />
-        </div>
-      )}
+  <div className="flex-1 flex flex-col items-center justify-center space-y-10 relative">
+    <AnimatedBackground />
+    <ChatWelcomeTabs
+      userName={user?.name}
+      onMessageSelect={handleMessageSelect}
+    />
+  </div>
+)}
 
       {showScrollButton && (
         <button

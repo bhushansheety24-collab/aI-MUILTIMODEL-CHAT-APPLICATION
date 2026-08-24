@@ -1,10 +1,65 @@
 "use client";
-import { Sparkles } from "lucide-react";
+import { useState } from "react";
+import { Sparkles, Copy, Check } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import EmailSendButton, { parseEmailDraft } from "./email-send-button";
+import MermaidDiagram from "./mermaid-diagram";
+
+
+function CopyButton({ text, className = "" }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      console.error("Copy failed:", err);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className={`inline-flex items-center gap-1 rounded-md p-1.5 text-xs text-muted-foreground hover:bg-black/10 dark:hover:bg-white/10 transition-colors ${className}`}
+      title="Copy"
+    >
+      {copied ? (
+        <>
+          <Check className="h-3 w-3" />
+          <span>Copied</span>
+        </>
+      ) : (
+        <Copy className="h-3 w-3" />
+      )}
+    </button>
+  );
+}
+
+function CodeBlock({ language, code }) {
+  return (
+    <div className="relative my-2 group">
+      <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+        <CopyButton
+          text={code}
+          className="bg-black/20 dark:bg-white/10 text-white"
+        />
+      </div>
+      <SyntaxHighlighter
+        style={oneDark}
+        language={language}
+        PreTag="div"
+        className="rounded-lg text-xs !mt-0"
+      >
+        {code}
+      </SyntaxHighlighter>
+    </div>
+  );
+}
 
 function MessageBubble({ role, content }) {
   const isUser = role === "user";
@@ -22,7 +77,7 @@ function MessageBubble({ role, content }) {
   const emailDraft = parseEmailDraft(content);
 
   return (
-    <div className="flex gap-3 w-full">
+    <div className="flex gap-3 w-full group/message">
       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
         <Sparkles className="h-3.5 w-3.5" />
       </div>
@@ -32,16 +87,14 @@ function MessageBubble({ role, content }) {
           components={{
             code({ node, inline, className, children, ...props }) {
               const match = /language-(\w+)/.exec(className || "");
+              const codeString = String(children).replace(/\n$/, "");
+
+              if (!inline && match && match[1] === "mermaid") {
+                return <MermaidDiagram chart={codeString} />;
+              }
+
               return !inline && match ? (
-                <SyntaxHighlighter
-                  style={oneDark}
-                  language={match[1]}
-                  PreTag="div"
-                  className="rounded-lg my-2 text-xs"
-                  {...props}
-                >
-                  {String(children).replace(/\n$/, "")}
-                </SyntaxHighlighter>
+                <CodeBlock language={match[1]} code={codeString} />
               ) : (
                 <code
                   className="bg-black/10 dark:bg-white/10 rounded px-1 py-0.5 text-xs"
@@ -110,6 +163,10 @@ function MessageBubble({ role, content }) {
             body={emailDraft.body}
           />
         )}
+
+        <div className="opacity-0 group-hover/message:opacity-100 transition-opacity mt-1">
+          <CopyButton text={content} />
+        </div>
       </div>
     </div>
   );
